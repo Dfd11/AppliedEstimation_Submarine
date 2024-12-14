@@ -1,0 +1,19 @@
+current_time_in_sec | ODOM_x ODOM_y ODOM_theta | ENC_L ENC_R | GROUND_X GROUND_Y GROUND_THETA | num_of_measurements
+current_time_in_sec_with_1_dec_point | VBS_val | ODOM.CSV | imu_en dvl_en press_en | imu_z_accel dvl_x dvl_y dvl_z dvl_altitude water_press
+
+
+SENSOR
+imu.csv : Inertial Measurement Unit Sensor
+
+fluid_pressure.csv : Pressure Sensor Readings
+depth.csv : Pressure Sensor Reading Converted into depth
+
+dvl.csv : Doppler Velocity Logger Sensor
+
+CONTROL
+vbs.csv : Percentage of control for the Variable Bouyancy System
+
+AID
+odom.csv : Ground Truth values for depth.
+
+thrustvertical.csv : 0 thrust vertically
