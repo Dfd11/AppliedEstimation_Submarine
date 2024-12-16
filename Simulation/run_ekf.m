@@ -18,8 +18,8 @@ mu = [0 ; 0 ; 0];
 %sigma_bar = zeros(3,3);
 
 R = [0.001^2 0 0;
-     0 0.0005^2 0;
-     0 0 0.001^2
+     0 0.005^2 0;
+     0 0 0.01^2
      ];
 sigma = R;
 Q = [0.15^2 0; %This noise has to be in terms of m/s
@@ -46,6 +46,8 @@ global meas_en
 
 %Storage Arrays
 state = zeros(3,n_timesteps);
+pos_state = zeros(1,n_timesteps);
+neg_state = zeros(1,n_timesteps);
 timesteps = zeros(1, n_timesteps);
 pose_errors = zeros(1, n_timesteps);
 sigmas = zeros(size(sigma(:), 1), n_timesteps);
@@ -75,16 +77,12 @@ ylabel(depth_ax, 'Depth');
 
 % Initialize legend
 legend(depth_ax, 'Location', 'best');
-
-% Data storage
-%xData = [];
-%yData = [];
-%stdDevs = [];
 depth_lineHandle = plot(depth_ax, NaN, NaN, 'g-', 'DisplayName', 'Estimated Depth');
 true_lineHandle = plot(depth_ax, NaN, NaN, 'k-', 'DisplayName', 'True Depth');
 press_lineHandle = scatter(depth_ax,NaN,NaN,3,"blue","filled",'DisplayName','Press Sensor','MarkerFaceAlpha',3/8);
+pos_lineHandle = plot(depth_ax, NaN, NaN, 'r-','DisplayName', 'Pos Std Dev');
+neg_lineHandle = plot(depth_ax, NaN, NaN, 'r-','DisplayName', 'Neg Std Dev');
 
-errorBarHandle = errorbar(depth_ax, NaN, NaN, NaN, '.', 'Color', [0, 0.447, 0.741], 'DisplayName', 'Uncertainty');
 
 %% Error Plot
 %Params
@@ -138,8 +136,8 @@ accel_sigma_min = -1;
 accel_sigma_max = 5;
 vel_sigma_min = -1;
 vel_sigma_max = 5;
-depth_sigma_min = -1;
-depth_sigma_max = 1;
+depth_sigma_min = -0.1;
+depth_sigma_max = 0.1;
 
 % Configure plot
 accel_sigma.XLim = [-t_margin, n_timesteps*dt+t_margin];
@@ -205,6 +203,7 @@ for tstep=1:n_timesteps
 
     % Statistics
     state(:,tstep) = mu(:);
+    
     pose_errors(tstep) = abs(true_pose - mu(3)); %Error for the depth
 %    sensor_depth(tstep) = -(single_sens_reading-C2)/C3; %Sensor reading converted into negative depth
     sensor_depth(tstep) = single_sens_reading;
@@ -215,8 +214,8 @@ for tstep=1:n_timesteps
     set(depth_lineHandle,'XData',timesteps(1:tstep),'YData',state(3,1:tstep)); %Estimated State
     set(true_lineHandle,'XData',timesteps(1:tstep),'YData',sim_data(1:tstep,3)); %True State
     set(press_lineHandle,'XData',timesteps(1:tstep),'YData',sensor_depth(1:tstep)); %Sensor Measurement With noise
-    set(errorBarHandle,'XData',timesteps(tstep),'YData',state(3,tstep),'UData',sqrt(sigmas(9,tstep)),'LData',sqrt(sigmas(9,tstep)));
-
+    %set(errorBarHandle,'XData',timesteps(tstep),'YData',state(3,tstep),'UData',sqrt(sigmas(9,tstep)),'LData',sqrt(sigmas(9,tstep)));
+    
     set(error_lineHandle,'XData',timesteps(1:tstep),'YData',pose_errors(1:tstep));
 
     [accel_sigma_min,accel_sigma_max,vel_sigma_min,vel_sigma_max,depth_sigma_min,depth_sigma_max] = calc_limits_sigma(sigmas(:,tstep),accel_sigma_min,accel_sigma_max,vel_sigma_min,vel_sigma_max,depth_sigma_min,depth_sigma_max);
@@ -233,4 +232,9 @@ for tstep=1:n_timesteps
     title(error_ax, [error_graphTitle, ' - Timestep ', num2str(t)]);
     pause(0.1);
 end
+pos_state = state(3,:) + sqrt(sigmas(9,:));
+neg_state = state(3,:) - sqrt(sigmas(9,:));
+set(pos_lineHandle,'XData',timesteps,'YData',pos_state); %Positive Std Dev
+set(neg_lineHandle,'XData',timesteps,'YData',neg_state); %Negative Std Dev
+  
 
