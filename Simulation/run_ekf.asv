@@ -18,8 +18,8 @@ mu = [0 ; 0 ; 0];
 %sigma_bar = zeros(3,3);
 
 R = [0.001^2 0 0;
-     0 0.0005^2 0;
-     0 0 0.001^2
+     0 0.005^2 0;
+     0 0 0.01^2
      ];
 sigma = R;
 Q = [0.15^2 0; %This noise has to be in terms of m/s
@@ -77,18 +77,13 @@ ylabel(depth_ax, 'Depth');
 
 % Initialize legend
 legend(depth_ax, 'Location', 'best');
-
-% Data storage
-%xData = [];
-%yData = [];
-%stdDevs = [];
 depth_lineHandle = plot(depth_ax, NaN, NaN, 'g-', 'DisplayName', 'Estimated Depth');
 true_lineHandle = plot(depth_ax, NaN, NaN, 'k-', 'DisplayName', 'True Depth');
 press_lineHandle = scatter(depth_ax,NaN,NaN,3,"blue","filled",'DisplayName','Press Sensor','MarkerFaceAlpha',3/8);
+pos_lineHandle = plot(depth_ax, NaN, NaN, 'r-','DisplayName', 'Pos Std Dev');
+neg_lineHandle = plot(depth_ax, NaN, NaN, 'r-','DisplayName', 'Neg Std Dev');
 
-%errorBarHandle = errorbar(depth_ax, NaN, NaN, NaN, '.', 'Color', [0, 0.447, 0.741], 'DisplayName', 'Uncertainty');
-pos_lineHandle = plot(depth_ax, NaN, NaN, 'r-');
-neg_lineHandle = plot(depth_ax, NaN, NaN, 'r-');
+
 %% Error Plot
 %Params
 t_margin = 0.5;
@@ -141,8 +136,8 @@ accel_sigma_min = -1;
 accel_sigma_max = 5;
 vel_sigma_min = -1;
 vel_sigma_max = 5;
-depth_sigma_min = -1;
-depth_sigma_max = 1;
+depth_sigma_min = -0.1;
+depth_sigma_max = 0.1;
 
 % Configure plot
 accel_sigma.XLim = [-t_margin, n_timesteps*dt+t_margin];
@@ -237,9 +232,79 @@ for tstep=1:n_timesteps
     title(error_ax, [error_graphTitle, ' - Timestep ', num2str(t)]);
     pause(0.1);
 end
-pos_state(tstep) = state(3,tstep) + sqrt(Q(2,2));
-neg_state(tstep) = state(3,tstep) - sqrt(Q(2,2));
+pos_state = state(3,:) + sqrt(sigmas(9,:));
+neg_state = state(3,:) - sqrt(sigmas(9,:));
 set(pos_lineHandle,'XData',timesteps,'YData',pos_state); %Positive Std Dev
 set(neg_lineHandle,'XData',timesteps,'YData',neg_state); %Negative Std Dev
   
 
+%% State Plot
+%Params
+t_margin = 0.5;
+% Initialize figure and settings
+states_fig = figure('Name', 'States', 'NumberTitle', 'off');
+
+accel = subplot(3, 1, 1, 'Parent', states_fig);
+vel = subplot(3, 1, 2, 'Parent', states_fig);
+depth = subplot(3, 1, 3, 'Parent', states_fig);
+
+hold(accel, 'on');
+hold(vel, 'on');
+hold(depth, 'on');
+
+% Default graph settings
+states_graphTitle = 'State';
+
+accel_min = -1;
+accel_max = 5;
+vel_min = -1;
+vel_max = 5;
+depth_min = -0.1;
+depth_max = 0.1;
+
+% Configure plot
+accel.XLim = [-t_margin, n_timesteps*dt+t_margin];
+accel.YLim = [accel_min , accel_max];
+vel.XLim = [-t_margin, n_timesteps*dt+t_margin];
+vel.YLim = [vel_min , vel_max];
+depth.XLim = [-t_margin, n_timesteps*dt+t_margin];
+depth.YLim = [depth_min , depth_max];
+grid(accel, true);
+grid(vel, true);
+grid(depth, true);
+title(accel, strcat(states_graphTitle,' Accel'));
+title(vel, strcat(states_graphTitle,' Vel'));
+title(depth, strcat(states_graphTitle,' Depth'));
+xlabel(accel, 'Timesteps');
+ylabel(accel, 'Variance');
+
+% Initialize legend
+legend(accel, 'Location', 'best');
+legend(vel, 'Location', 'best');
+legend(depth, 'Location', 'best');
+% Data storage
+%xData = [];
+%yData = [];
+%stdDevs = [];
+accel_lineHandle = plot(accel, NaN, NaN, 'g-', 'DisplayName', 'Estimated Accel');
+true_accel_lineHandle = plot(accel, NaN, NaN, 'k-', 'DisplayName', 'True Accel');
+vel_lineHandle = plot(vel, NaN, NaN, 'g-', 'DisplayName', 'Est Vel');
+true_vel_lineHandle = plot(vel, NaN, NaN, 'k-', 'DisplayName', 'True Vel');
+depth_lineHandle = plot(depth, NaN, NaN, 'g-', 'DisplayName', 'Est Depth');
+true_depth_lineHandle = plot(depth, NaN, NaN, 'k-', 'DisplayName', 'True Depth');
+accel_state = state(1,:);
+vel_state = state(2,:);
+depth_state = state(3,:);
+true_vel = true_pose - [0 sim_data(1:end-1,3)'];
+true_accel = true_vel - [0 true_vel(1:end-1)];
+[accel_min,accel_max,vel_min,vel_max,depth_min,depth_max] = calc_limits_sigma(sigmas(:,tstep),accel_sigma_min,accel_sigma_max,vel_sigma_min,vel_sigma_max,depth_sigma_min,depth_sigma_max);
+accel_sigma.YLim = [accel_sigma_min , accel_sigma_max];
+vel_sigma.YLim = [vel_sigma_min , vel_sigma_max];
+depth_sigma.YLim = [depth_sigma_min , depth_sigma_max];
+set(accel_lineHandle,'XData',timesteps,'YData',accel_state); %Positive Std Dev
+set(true_accel_lineHandle,'XData',timesteps,'YData',true_accel); %Positive Std Dev
+set(vel_lineHandle,'XData',timesteps,'YData',vel_state); %Positive Std Dev
+set(true_vel_lineHandle,'XData',timesteps,'YData',true_vel); %Positive Std Dev
+set(depth_lineHandle,'XData',timesteps,'YData',depth_state); %Positive Std Dev
+set(true_depth_lineHandle,'XData',timesteps,'YData',sim_data(:,3)'); %Positive Std Dev
+  
