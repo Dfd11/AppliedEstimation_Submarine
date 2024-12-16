@@ -15,7 +15,7 @@ function [mu_bar, sigma_bar] = predict_(mu, sigma, u,delta_t)
     global R % covariance matrix of motion model | shape 3X3
 
     % YOUR IMPLEMENTATION %
-    mu_bar = [  -u(1);
+    mu_bar = [  u(1);
                 delta_t*mu(1) + mu(2);
                 1/2*delta_t^2*mu(1) + delta_t*mu(2) + mu(3)
              ];

@@ -23,8 +23,10 @@ function [mu_bar, sigma_bar] = update_(mu_bar, sigma_bar,C3,C2,z_i)
         end
 
         if meas_en(3)
-            h = [h ; -mu_bar(3)*C3 + C2]; %The other option is to just put mu_bar(3) here and when calculating the innovation do it in terms of depth and not water pressure
-            H = [H ; 0 0 -C3];
+%            h = [h ; -mu_bar(3)*C3 + C2]; %The other option is to just put mu_bar(3) here and when calculating the innovation do it in terms of depth and not water pressure
+            h = [h ; mu_bar(3)];
+%            H = [H ; 0 0 -C3]; %DAVID change everything to be done in terms of m and not in terms of pascals
+            H = [H ; 0 0 1];
         end
         
         %% Noise Matrix
