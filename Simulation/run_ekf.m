@@ -18,11 +18,11 @@ mu = [0 ; 0 ; 0];
 %sigma_bar = zeros(3,3);
 
 R = [0.001^2 0 0;
-     0 0.005^2 0;
-     0 0 0.01^2
+     0 0.008^2 0;
+     0 0 0.004^2
      ];
 sigma = R;
-Q = [0.15^2 0; %This noise has to be in terms of m/s
+Q = [0.05^2 0; %This noise has to be in terms of m/s
      0 0.15^2 %This noise has to be in terms of pascals
      ];
 
@@ -32,9 +32,12 @@ C3 = 9806.65 ; % g times the water density p
 g= 9.80665 ; %m/s^2
 p=1000;
 VVBS = 2.5535e-4 ; %m^3 %DAVID Check if we are still going to use this calculated value or ROS?
-MSAM = 250; %kg %DAVID change SAM Mass
+%MSAM = 250; %kg %DAVID change SAM Mass
+MSAM = 12.012 + 0.3;
 %VSAM = 0.020127675; %m^3 %DAVID change SAM Volume
-VSAM = (MSAM*g+0.75)/(g*p); %DAVID this was estimated based on the fact that the volume of VBS was about a 2.5 N range, so displaced water volume and SAM weigth should be within that range
+%VSAM = (MSAM*g+0.75)/(g*p); %DAVID this was estimated based on the fact that the volume of VBS was about a 2.5 N range, so displaced water volume and SAM weigth should be within that range
+VSAM = (MSAM*g+1.25)/(g*p);
+drag = 12.5;
 
 %% Sim Initialize
 
@@ -188,7 +191,7 @@ for tstep=1:n_timesteps
     
     %Predict Phase mu = mu(t-1) + u
     u = calculate_odometry(VSAM,VVBS,MSAM,g,vbs,dt,mu);
-    [mu, sigma] = predict_(mu, sigma, u,dt);
+    [mu, sigma] = predict_(mu, sigma, u,dt,drag);
 
     %Update Phase
     try
