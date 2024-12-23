@@ -1,4 +1,4 @@
-function [mu, sigma] = UKF(mu, sigma, u, z,dt)
+function [mu, sigma] = UKF(mu, sigma, u, z,dt,drag)
 % UKF - Unscented Kalman Filter algorithm
 % mu    - Prior mean                      3X1
 % Sigma - Prior covariance                3X3
@@ -31,7 +31,7 @@ X = [mu, mu + gamma*S, mu - gamma*S];
 
 %% Prediction Step
 for i=1:2*n+1
-    X_pred(:,i)= predict_ukf(X(:,i), u,dt);
+    X_pred(:,i)= predict_ukf(X(:,i), u,dt,drag);
 end
 
 x_pred = sum(Wm .* X_pred,2);
