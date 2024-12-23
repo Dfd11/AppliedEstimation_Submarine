@@ -16,7 +16,7 @@ kappa = 0;    % Second scaling parameter
 beta  = 2;    % Optimal for Gaussian distributions 
 
 n = length(mu); % Number of states: 3
-m = length(Q);  % Number of measurements
+m = length(z);  % Number of measurements
 %m = size(R, 1); % Number of process noise components: 3
 %N = n + m;      % Augmented state size: 6
 lambda = alpha^2 * (n + kappa) - n; % Scaling factor
@@ -43,13 +43,13 @@ end
 %% Update Step
 Z_pred = zeros(m,2*n+1);
 for i=1:2*n+1
-    Z_pred(:,i) = g_measurement(X_pred(:, i));
+    [Z_pred(:,i), Q_pred] = g_measurement(X_pred(:, i));
 end
 
 z_pred = sum(Wm .* Z_pred, 2);
 
 % Innovation covariance
-Q_zz = Q;
+Q_zz = Q_pred;
 for i = 1:2*n+1
     Q_zz = Q_zz + Wc(1)*(Z_pred(:,i) - z_pred) * (Z_pred(:,i) - z_pred)';
 end

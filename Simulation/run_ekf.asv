@@ -169,13 +169,7 @@ accel_sigma_lineHandle = plot(accel_sigma, NaN, NaN, 'k-', 'DisplayName', 'Accel
 vel_sigma_lineHandle = plot(vel_sigma, NaN, NaN, 'k-', 'DisplayName', 'Vel Cov');
 depth_sigma_lineHandle = plot(depth_sigma, NaN, NaN, 'k-', 'DisplayName', 'Depth Cov');
 
-EKF_UKF = 1;
-if EKF_UKF ==0
-    disp('Running EKF')
-else
-    disp('Running UKF')
-end
-
+EKF_UKF = 0;
 for tstep=1:n_timesteps
     t = sim_data(tstep,1);
     vbs = sim_data(tstep,2);
@@ -197,18 +191,18 @@ for tstep=1:n_timesteps
     u = calculate_odometry(VSAM,VVBS,MSAM,g,vbs,dt,mu);
 
     if EKF_UKF == 0
-        % Predict phase
         [mu, sigma] = predict_(mu, sigma, u,dt,drag);
-        % Update Phase
-        try
-            [mu, sigma] = update_(mu, sigma,C3, C2,z);
-        catch
-            warning("Error")
-            pose_errors(tstep) = true_pose - mu(3); %Error for the depth
-            sigmas(:,tstep) = sigma(:); %Covariance matrix
-            timesteps(tstep) = t; %Time stamp
-            break;
-        end
+
+    %Update Phase
+    try
+        [mu, sigma] = update_(mu, sigma,C3, C2,z);
+    catch
+        warning("Error")
+        pose_errors(tstep) = true_pose - mu(3); %Error for the depth
+        sigmas(:,tstep) = sigma(:); %Covariance matrix
+        timesteps(tstep) = t; %Time stamp
+        break;
+    end
     else
         [mu, sigma] = UKF(mu, sigma, u, z,dt,drag);
     end
@@ -244,8 +238,62 @@ for tstep=1:n_timesteps
 
 end
 
-%% EKF Loop
+%% UKF Loop
 %{
+for tstep=1:n_timesteps
+    t = sim_data(tstep,1);
+    vbs = sim_data(tstep,2);
+    true_pose = sim_data(tstep,3);
+    meas_en = sim_data(tstep,4:6);
+
+    z = [];
+    if meas_en(2) %DVL
+        z = [z ; sim_data(tstep,10)];
+    end
+
+    if meas_en(3) %Pressure
+%        single_sens_reading = sim_data(tstep,12)+ sqrt(Q(2,2))*randn;
+        single_sens_reading = -(sim_data(tstep,12)-C2)/C3 + sqrt(Q(2,2))*randn;
+        z = [z ; single_sens_reading];
+    end
+    
+    %Predict Phase mu = mu(t-1) + u
+    u = calculate_odometry(VSAM,VVBS,MSAM,g,vbs,dt,mu);
+    [mu, sigma] = UKF(mu, sigma, u, z,dt,drag);
+
+    % Statistics
+    state(:,tstep) = mu(:);
+    
+    pose_errors(tstep) = abs(true_pose - mu(3)); %Error for the depth
+%    sensor_depth(tstep) = -(single_sens_reading-C2)/C3; %Sensor reading converted into negative depth
+    sensor_depth(tstep) = single_sens_reading;
+    sigmas(:,tstep) = sigma(:); %Covariance matrix
+    timesteps(tstep) = t; %Time stamp
+
+    % Plots
+    set(depth_lineHandle,'XData',timesteps(1:tstep),'YData',state(3,1:tstep)); %Estimated State
+    set(true_lineHandle,'XData',timesteps(1:tstep),'YData',sim_data(1:tstep,3)); %True State
+    set(press_lineHandle,'XData',timesteps(1:tstep),'YData',sensor_depth(1:tstep)); %Sensor Measurement With noise
+    %set(errorBarHandle,'XData',timesteps(tstep),'YData',state(3,tstep),'UData',sqrt(sigmas(9,tstep)),'LData',sqrt(sigmas(9,tstep)));
+    
+    set(error_lineHandle,'XData',timesteps(1:tstep),'YData',pose_errors(1:tstep));
+
+    [accel_sigma_min,accel_sigma_max,vel_sigma_min,vel_sigma_max,depth_sigma_min,depth_sigma_max] = calc_limits_sigma(sigmas(:,tstep),accel_sigma_min,accel_sigma_max,vel_sigma_min,vel_sigma_max,depth_sigma_min,depth_sigma_max);
+    accel_sigma.YLim = [accel_sigma_min , accel_sigma_max];
+    vel_sigma.YLim = [vel_sigma_min , vel_sigma_max];
+    depth_sigma.YLim = [depth_sigma_min , depth_sigma_max];
+    set(accel_sigma_lineHandle,'XData',timesteps(1:tstep),'YData',sigmas(1,1:tstep));
+    set(vel_sigma_lineHandle,'XData',timesteps(1:tstep),'YData',sigmas(5,1:tstep));
+    set(depth_sigma_lineHandle,'XData',timesteps(1:tstep),'YData',sigmas(9,1:tstep));
+
+    title(depth_ax, [depth_graphTitle, ' - Timestep ', num2str(t)]);
+    title(error_ax, [error_graphTitle, ' - Timestep ', num2str(t)]);
+    pause(0.1);
+end
+%}
+
+%% EKF Loop
+%
 for tstep=1:n_timesteps
     t = sim_data(tstep,1);
     vbs = sim_data(tstep,2);

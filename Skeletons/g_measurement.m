@@ -10,7 +10,7 @@
 % Outputs:
 %           mu_bar(t)       3X1
 %           sigma_bar(t)    3X3
-function z_hat = g_measurement(mu_bar)
+function [z_hat, temp_q] = g_measurement(mu_bar)
         global Q
         global meas_en
         % YOUR IMPLEMENTATION %
