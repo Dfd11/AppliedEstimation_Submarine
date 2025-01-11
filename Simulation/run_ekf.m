@@ -17,7 +17,7 @@ mu_ukf = mu;
 %mu_bar =[0 ;0 ;0];
 %sigma = diag(100*ones(1,3));
 %sigma_bar = zeros(3,3);
-
+EKF_UKF = 2;
 R = [0.001^2 0 0;
      0 0.008^2 0;
      0 0 0.004^2
@@ -42,7 +42,7 @@ MSAM = 12.012 + 0.3;
 VSAM = (MSAM*g+1.25)/(g*p);
 drag = 12.5;
 
-EKF_UKF = 2;
+
 if EKF_UKF ==0 | EKF_UKF == 2
     disp('Running EKF')
 end
@@ -419,4 +419,4 @@ set(vel_sigma_lineHandle_ukf,'XData',timesteps,'YData',sigmas_ukf(5,:));
 set(depth_sigma_lineHandle_ukf,'XData',timesteps,'YData',sigmas_ukf(9,:));
 end
 %% Configure error plot
-title(error_ax, [error_graphTitle, ' - Timestep ', num2str(t), ' - MSE EKF ', num2str(sum(pose_errors(1:tstep).^2)), ' - MSE UKF ', num2str(sum(pose_errors_ukf(1:tstep).^2))]);
+title(error_ax, [error_graphTitle, ' - Timestep ', num2str(t), ' - MSE EKF ', num2str(mean(pose_errors(1:tstep).^2)), ' - MSE UKF ', num2str(mean(pose_errors_ukf(1:tstep).^2))]);
