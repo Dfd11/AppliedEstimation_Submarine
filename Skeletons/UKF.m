@@ -26,7 +26,12 @@ gamma = sqrt(n + lambda); % Bottom of Table 7.3.2
 Wm = [lambda/(n+lambda), 0.5/(n+lambda)*ones(1,2*n)]; % 7.34
 Wc = Wm; % 7.34
 Wc(1) = Wc(1) + (1 - alpha^2 + beta); % 7.34
+try
 S = chol(sigma,"lower"); % Lower trianquilar, square root of sigma Cholesky descomposition, variations for numerical purposes in Implementation Variations
+catch
+    warning("Error")
+    return;
+end
 X = [mu, mu + gamma*S, mu - gamma*S]; %(7.52)
 
 %% Prediction Step
@@ -41,31 +46,35 @@ for i=1:2*n+1
 end
 
 %% Update Step
-Z_pred = zeros(m,2*n+1);
-for i=1:2*n+1
-    [Z_pred(:,i), Q_pred] = g_measurement(X_pred(:, i)); % 7.43
+if ~isempty(z)
+    Z_pred = zeros(m,2*n+1);
+    for i=1:2*n+1
+        [Z_pred(:,i), Q_pred] = g_measurement(X_pred(:, i)); % 7.43
+    end
+    
+    z_pred = sum(Wm .* Z_pred, 2); % 7.44
+    
+    % Innovation covariance
+    Q_zz = Q_pred;
+    for i = 1:2*n+1
+        Q_zz = Q_zz + Wc(1)*(Z_pred(:,i) - z_pred) * (Z_pred(:,i) - z_pred)'; % 7.45
+    end
+    
+    % Cross-covariance
+    P_xz = zeros(n,m);
+    for i = 1:2*n+1
+        P_xz = P_xz + Wc(i) * (X_pred(:, i) - x_pred) * (Z_pred(:, i) - z_pred)'; % 7.46
+    end
+    
+    % Kalman gain
+    K = P_xz/Q_zz; % 7.47
+    
+    % Update state and covariance
+    mu = x_pred + K * (z - z_pred); % 7.48
+    sigma = R_pred - K * Q_zz * K'; % 7.49
+else
+    mu = x_pred ;
+    sigma = R_pred ;
 end
-
-z_pred = sum(Wm .* Z_pred, 2); % 7.44
-
-% Innovation covariance
-Q_zz = Q_pred;
-for i = 1:2*n+1
-    Q_zz = Q_zz + Wc(1)*(Z_pred(:,i) - z_pred) * (Z_pred(:,i) - z_pred)'; % 7.45
-end
-
-% Cross-covariance
-P_xz = zeros(n,m);
-for i = 1:2*n+1
-    P_xz = P_xz + Wc(i) * (X_pred(:, i) - x_pred) * (Z_pred(:, i) - z_pred)'; % 7.46
-end
-
-% Kalman gain
-K = P_xz/Q_zz; % 7.47
-
-% Update state and covariance
-mu = x_pred + K * (z - z_pred); % 7.48
-sigma = R_pred - K * Q_zz * K'; % 7.49
-
 end
 

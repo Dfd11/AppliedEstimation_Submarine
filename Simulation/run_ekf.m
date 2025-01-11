@@ -27,7 +27,8 @@ sigma_ukf = sigma;
 Q = [0.05^2 0; %This noise has to be in terms of m/s
      0 0.15^2 %This noise has to be in terms of pascals
      ];
-
+DVL_freq = 0.1;
+press_freq = 0.1;
 %% Constants
 C2 = 101325.0 ; %1 Atmosphere in Pascals
 C3 = 9806.65 ; % g times the water density p
@@ -41,7 +42,7 @@ MSAM = 12.012 + 0.3;
 VSAM = (MSAM*g+1.25)/(g*p);
 drag = 12.5;
 
-EKF_UKF = 0;
+EKF_UKF = 1;
 if EKF_UKF ==0
     disp('Running EKF')
 else
@@ -52,6 +53,8 @@ end
 
 %t = 0;
 dt = 0.1;
+dvl_count = DVL_freq/dt;
+press_count = press_freq/dt;
 n_timesteps = size(sim_data,1);
 global meas_en
 
@@ -194,13 +197,28 @@ for tstep=1:n_timesteps
 
     z = [];
     if meas_en(2) %DVL
-        z = [z ; sim_data(tstep,10)];
+        if dvl_count == DVL_freq/dt;
+            z = [z ; sim_data(tstep,10)];
+            dvl_count = 1;
+            meas_en(2) = 1;
+        else
+            dvl_count = dvl_count + 1;
+            meas_en(2) = 0;
+        end
     end
 
     if meas_en(3) %Pressure
-%        single_sens_reading = sim_data(tstep,12)+ sqrt(Q(2,2))*randn;
-        single_sens_reading = -(sim_data(tstep,12)-C2)/C3 + sqrt(Q(2,2))*randn;
-        z = [z ; single_sens_reading];
+        single_sens_reading = -(sim_data(tstep,12)-C2)/C3 + sqrt(0.15^2)*randn;
+        if press_count == press_freq/dt;
+    %        single_sens_reading = sim_data(tstep,12)+ sqrt(Q(2,2))*randn;
+
+            z = [z ; single_sens_reading];
+            press_count = 1;
+            meas_en(3) = 1;
+        else
+            press_count = press_count + 1;
+            meas_en(3) = 0;
+        end
     end
     
     %Predict Phase mu = mu(t-1) + u
@@ -211,7 +229,9 @@ for tstep=1:n_timesteps
         [mu, sigma] = predict_(mu, sigma, u,dt,drag);
         % Update Phase
         try
-            [mu, sigma] = update_(mu, sigma,C3, C2,z);
+            if ~isempty(z)
+                [mu, sigma] = update_(mu, sigma,C3, C2,z);
+            end
         catch
             warning("Error")
             pose_errors(tstep) = true_pose - mu(3); %Error for the depth
@@ -252,7 +272,7 @@ for tstep=1:n_timesteps
     set(depth_sigma_lineHandle,'XData',timesteps(1:tstep),'YData',sigmas(9,1:tstep));
 
     title(depth_ax, [depth_graphTitle, ' - Timestep ', num2str(t)]);
-    title(error_ax, [error_graphTitle, ' - Timestep ', num2str(t)]);
+    title(error_ax, [error_graphTitle, ' - Timestep ', num2str(t), ' - MSE ', num2str(sum(pose_errors(1:tstep).^2))]);
     %pause(0.01);
 
 end
