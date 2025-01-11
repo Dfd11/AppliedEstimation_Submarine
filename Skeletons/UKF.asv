@@ -19,53 +19,53 @@ n = length(mu); % Number of states: 3
 m = length(z);  % Number of measurements
 %m = size(R, 1); % Number of process noise components: 3
 %N = n + m;      % Augmented state size: 6
-lambda = alpha^2 * (n + kappa) - n; % Scaling factor underneath of 7.30
-gamma = sqrt(n + lambda); % Bottom of Table 7.3.2
+lambda = alpha^2 * (n + kappa) - n; % Scaling factor
+gamma = sqrt(n + lambda);
 
 % Weights and sigma points
 Wm = [lambda/(n+lambda), 0.5/(n+lambda)*ones(1,2*n)]; % 7.34
 Wc = Wm; % 7.34
 Wc(1) = Wc(1) + (1 - alpha^2 + beta); % 7.34
-S = chol(sigma,"lower"); % Lower trianquilar, square root of sigma Cholesky descomposition, variations for numerical purposes in Implementation Variations
+S = chol(sigma,"lower"); % Lower trianquilar, square root of sigma Cholesky descomposition
 X = [mu, mu + gamma*S, mu - gamma*S]; %(7.52)
 
 %% Prediction Step
 for i=1:2*n+1
-    X_pred(:,i)= predict_ukf(X(:,i), u,dt,drag); % 7.40
+    X_pred(:,i)= predict_ukf(X(:,i), u,dt,drag);
 end
 
-x_pred = sum(Wm .* X_pred,2); % 7.41
+x_pred = sum(Wm .* X_pred,2);
 R_pred = R; 
 for i=1:2*n+1
-    R_pred = R_pred +  Wc(i) * (X_pred(:,i)-x_pred)*(X_pred(:,i)-x_pred)'; % 7.42
+    R_pred = R_pred +  Wc(i) * (X_pred(:,i)-x_pred)*(X_pred(:,i)-x_pred)';
 end
 
 %% Update Step
 Z_pred = zeros(m,2*n+1);
 for i=1:2*n+1
-    [Z_pred(:,i), Q_pred] = g_measurement(X_pred(:, i)); % 7.43
+    [Z_pred(:,i), Q_pred] = g_measurement(X_pred(:, i));
 end
 
-z_pred = sum(Wm .* Z_pred, 2); % 7.44
+z_pred = sum(Wm .* Z_pred, 2);
 
 % Innovation covariance
 Q_zz = Q_pred;
 for i = 1:2*n+1
-    Q_zz = Q_zz + Wc(1)*(Z_pred(:,i) - z_pred) * (Z_pred(:,i) - z_pred)'; % 7.45
+    Q_zz = Q_zz + Wc(1)*(Z_pred(:,i) - z_pred) * (Z_pred(:,i) - z_pred)';
 end
 
 % Cross-covariance
 P_xz = zeros(n,m);
 for i = 1:2*n+1
-    P_xz = P_xz + Wc(i) * (X_pred(:, i) - x_pred) * (Z_pred(:, i) - z_pred)'; % 7.46
+    P_xz = P_xz + Wc(i) * (X_pred(:, i) - x_pred) * (Z_pred(:, i) - z_pred)';
 end
 
 % Kalman gain
-K = P_xz/Q_zz; % 7.47
+K = P_xz/Q_zz;
 
 % Update state and covariance
-mu = x_pred + K * (z - z_pred); % 7.48
-sigma = R_pred - K * Q_zz * K'; % 7.49
+mu = x_pred + K * (z - z_pred);
+sigma = R_pred - K * Q_zz * K';
 
 end
 
