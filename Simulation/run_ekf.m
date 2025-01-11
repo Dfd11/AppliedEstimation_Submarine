@@ -42,10 +42,12 @@ MSAM = 12.012 + 0.3;
 VSAM = (MSAM*g+1.25)/(g*p);
 drag = 12.5;
 
-EKF_UKF = 1;
-if EKF_UKF ==0
+EKF_UKF = 2;
+if EKF_UKF ==0 | EKF_UKF == 2
     disp('Running EKF')
-else
+end
+
+if EKF_UKF ==1 | EKF_UKF == 2
     disp('Running UKF')
 end
 
@@ -97,11 +99,18 @@ ylabel(depth_ax, 'Depth');
 
 % Initialize legend
 legend(depth_ax, 'Location', 'best');
-depth_lineHandle = plot(depth_ax, NaN, NaN, 'g-', 'DisplayName', 'Estimated Depth');
+if EKF_UKF ==0 | EKF_UKF == 2
+depth_lineHandle = plot(depth_ax, NaN, NaN, 'g-', 'DisplayName', 'Estimated Depth EKF');
+pos_lineHandle = plot(depth_ax, NaN, NaN, 'r-','DisplayName', 'Pos Std Dev EKF');
+neg_lineHandle = plot(depth_ax, NaN, NaN, 'r-','DisplayName', 'Neg Std Dev EKF');
+end
+if EKF_UKF ==1 | EKF_UKF == 2
+depth_lineHandle_ukf = plot(depth_ax, NaN, NaN, 'm-', 'DisplayName', 'Estimated Depth UKF');
+pos_lineHandle_ukf = plot(depth_ax, NaN, NaN, 'c-','DisplayName', 'Pos Std Dev UKF');
+neg_lineHandle_ukf = plot(depth_ax, NaN, NaN, 'c-','DisplayName', 'Neg Std Dev UKF');
+end
 true_lineHandle = plot(depth_ax, NaN, NaN, 'k-', 'DisplayName', 'True Depth');
 press_lineHandle = scatter(depth_ax,NaN,NaN,3,"blue","filled",'DisplayName','Press Sensor','MarkerFaceAlpha',3/8);
-pos_lineHandle = plot(depth_ax, NaN, NaN, 'r-','DisplayName', 'Pos Std Dev');
-neg_lineHandle = plot(depth_ax, NaN, NaN, 'r-','DisplayName', 'Neg Std Dev');
 
 
 %% Error Plot
@@ -134,7 +143,12 @@ legend(error_ax, 'Location', 'best');
 %xData = [];
 %yData = [];
 %stdDevs = [];
-error_lineHandle = plot(error_ax, NaN, NaN, 'k-', 'DisplayName', 'Data');
+if EKF_UKF ==0 | EKF_UKF == 2
+error_lineHandle = plot(error_ax, NaN, NaN, 'g-', 'DisplayName', 'Error EKF');
+end
+if EKF_UKF ==1 | EKF_UKF == 2
+error_lineHandle_ukf = plot(error_ax, NaN, NaN, 'm-', 'DisplayName', 'Error UKF');
+end
 %% Sigmas Plot
 %Params
 t_margin = 0.5;
@@ -183,10 +197,16 @@ legend(depth_sigma, 'Location', 'best');
 %xData = [];
 %yData = [];
 %stdDevs = [];
-accel_sigma_lineHandle = plot(accel_sigma, NaN, NaN, 'k-', 'DisplayName', 'Accel Cov');
-vel_sigma_lineHandle = plot(vel_sigma, NaN, NaN, 'k-', 'DisplayName', 'Vel Cov');
-depth_sigma_lineHandle = plot(depth_sigma, NaN, NaN, 'k-', 'DisplayName', 'Depth Cov');
-
+if EKF_UKF ==0 | EKF_UKF == 2
+accel_sigma_lineHandle = plot(accel_sigma, NaN, NaN, 'g-', 'DisplayName', 'Accel Cov EKF');
+vel_sigma_lineHandle = plot(vel_sigma, NaN, NaN, 'g-', 'DisplayName', 'Vel Cov EKF');
+depth_sigma_lineHandle = plot(depth_sigma, NaN, NaN, 'g-', 'DisplayName', 'Depth Cov EKF');
+end
+if EKF_UKF ==1 | EKF_UKF == 2
+accel_sigma_lineHandle_ukf = plot(accel_sigma, NaN, NaN, 'm-', 'DisplayName', 'Accel Cov UKF');
+vel_sigma_lineHandle_ukf = plot(vel_sigma, NaN, NaN, 'm-', 'DisplayName', 'Vel Cov UKF');
+depth_sigma_lineHandle_ukf = plot(depth_sigma, NaN, NaN, 'm-', 'DisplayName', 'Depth Cov UKF');
+end
 
 %% Loop
 for tstep=1:n_timesteps
@@ -224,7 +244,7 @@ for tstep=1:n_timesteps
     %Predict Phase mu = mu(t-1) + u
     u = calculate_odometry(VSAM,VVBS,MSAM,g,vbs,dt,mu);
 
-    if EKF_UKF == 0
+    if EKF_UKF ==0 | EKF_UKF == 2
         % Predict phase
         [mu, sigma] = predict_(mu, sigma, u,dt,drag);
         % Update Phase
@@ -239,7 +259,8 @@ for tstep=1:n_timesteps
             timesteps(tstep) = t; %Time stamp
             break;
         end
-    else
+    end
+    if EKF_UKF ==1 | EKF_UKF == 2
         [mu_ukf, sigma_ukf] = UKF(mu_ukf, sigma_ukf, u, z,dt,drag);
     end
 
@@ -247,41 +268,40 @@ for tstep=1:n_timesteps
     state(:,tstep) = mu(:);
     state_ukf(:,tstep) = mu_ukf(:);
    
-    pose_errors(tstep) = abs(true_pose - mu(3)); %Error for the depth
-    pose_errors_ukf(tstep) = abs(true_pose - mu_ukf(3)); %Error for the depth
-%    sensor_depth(tstep) = -(single_sens_reading-C2)/C3; %Sensor reading converted into negative depth
-    sensor_depth(tstep) = single_sens_reading;
+    pose_errors(tstep) = (true_pose - mu(3)); %Error for the depth
+    pose_errors_ukf(tstep) = (true_pose - mu_ukf(3)); %Error for the depth
+
     sigmas(:,tstep) = sigma(:); %Covariance matrix
     sigmas_ukf(:,tstep) = sigma_ukf(:); %Covariance matrix
-    timesteps(tstep) = t; %Time stamp
-
-    % Plots
-    set(depth_lineHandle,'XData',timesteps(1:tstep),'YData',state(3,1:tstep)); %Estimated State
-    set(true_lineHandle,'XData',timesteps(1:tstep),'YData',sim_data(1:tstep,3)); %True State
-    set(press_lineHandle,'XData',timesteps(1:tstep),'YData',sensor_depth(1:tstep)); %Sensor Measurement With noise
-    %set(errorBarHandle,'XData',timesteps(tstep),'YData',state(3,tstep),'UData',sqrt(sigmas(9,tstep)),'LData',sqrt(sigmas(9,tstep)));
     
-    set(error_lineHandle,'XData',timesteps(1:tstep),'YData',pose_errors(1:tstep));
-
-    [accel_sigma_min,accel_sigma_max,vel_sigma_min,vel_sigma_max,depth_sigma_min,depth_sigma_max] = calc_limits_sigma(sigmas(:,tstep),accel_sigma_min,accel_sigma_max,vel_sigma_min,vel_sigma_max,depth_sigma_min,depth_sigma_max);
-    accel_sigma.YLim = [accel_sigma_min , accel_sigma_max];
-    vel_sigma.YLim = [vel_sigma_min , vel_sigma_max];
-    depth_sigma.YLim = [depth_sigma_min , depth_sigma_max];
-    set(accel_sigma_lineHandle,'XData',timesteps(1:tstep),'YData',sigmas(1,1:tstep));
-    set(vel_sigma_lineHandle,'XData',timesteps(1:tstep),'YData',sigmas(5,1:tstep));
-    set(depth_sigma_lineHandle,'XData',timesteps(1:tstep),'YData',sigmas(9,1:tstep));
-
-    title(depth_ax, [depth_graphTitle, ' - Timestep ', num2str(t)]);
-    title(error_ax, [error_graphTitle, ' - Timestep ', num2str(t), ' - MSE ', num2str(sum(pose_errors(1:tstep).^2))]);
-    %pause(0.01);
+    sensor_depth(tstep) = single_sens_reading;
+    timesteps(tstep) = t; %Time stamp
 
 end
 
+%% Depth Plot
+
+%EFK
+if EKF_UKF ==0 | EKF_UKF == 2
 pos_state = state(3,:) + sqrt(sigmas(9,:));
 neg_state = state(3,:) - sqrt(sigmas(9,:));
+set(depth_lineHandle,'XData',timesteps,'YData',state(3,:)); %Estimated State
 set(pos_lineHandle,'XData',timesteps,'YData',pos_state); %Positive Std Dev
 set(neg_lineHandle,'XData',timesteps,'YData',neg_state); %Negative Std Dev
-  
+set(error_lineHandle,'XData',timesteps,'YData',pose_errors(:));
+end
+if EKF_UKF ==1 | EKF_UKF == 2
+%UKF
+pos_state_ukf = state_ukf(3,:) + sqrt(sigmas_ukf(9,:));
+neg_state_ukf = state_ukf(3,:) - sqrt(sigmas_ukf(9,:));
+set(depth_lineHandle_ukf,'XData',timesteps,'YData',state_ukf(3,:)); %Estimated State
+set(pos_lineHandle_ukf,'XData',timesteps,'YData',pos_state_ukf); %Positive Std Dev
+set(neg_lineHandle_ukf,'XData',timesteps,'YData',neg_state_ukf); %Negative Std Dev
+set(error_lineHandle_ukf,'XData',timesteps,'YData',pose_errors_ukf(:));
+end
+set(true_lineHandle,'XData',timesteps,'YData',sim_data(:,3)); %True State
+set(press_lineHandle,'XData',timesteps,'YData',sensor_depth(:)); %Sensor Measurement With noise
+title(depth_ax, [depth_graphTitle, ' - Timestep ', num2str(t)]);
 
 %% State Plot
 %Params
@@ -318,37 +338,85 @@ legend(depth, 'Location', 'best');
 %xData = [];
 %yData = [];
 %stdDevs = [];
-accel_lineHandle = plot(accel, NaN, NaN, 'g-', 'DisplayName', 'Estimated Accel');
-true_accel_lineHandle = plot(accel, NaN, NaN, 'k-', 'DisplayName', 'True Accel');
-vel_lineHandle = plot(vel, NaN, NaN, 'g-', 'DisplayName', 'Est Vel');
-true_vel_lineHandle = plot(vel, NaN, NaN, 'k-', 'DisplayName', 'True Vel');
-depth_lineHandle = plot(depth, NaN, NaN, 'g-', 'DisplayName', 'Est Depth');
-true_depth_lineHandle = plot(depth, NaN, NaN, 'k-', 'DisplayName', 'True Depth');
+%EKF
+if EKF_UKF ==0 | EKF_UKF == 2
+accel_lineHandle = plot(accel, NaN, NaN, 'g-', 'DisplayName', 'Est. Accel EKF');
+vel_lineHandle = plot(vel, NaN, NaN, 'g-', 'DisplayName', 'Est. Vel EKF');
+depth_lineHandle = plot(depth, NaN, NaN, 'g-', 'DisplayName', 'Est. Depth EKF');
+end
 accel_state = state(1,:);
 vel_state = state(2,:);
 depth_state = state(3,:);
-true_vel = sim_data(:,3)' - [0 sim_data(1:end-1,3)'];
-true_accel = true_vel - [0 true_vel(1:end-1)];
 
-accel_min = min([accel_state true_accel])-0.1;
-accel_max = max([accel_state true_accel])+0.1;
-vel_min = min([vel_state true_vel])-0.1;
-vel_max = max([vel_state true_vel])-0.1;
-depth_min = min([depth_state sim_data(:,3)'])-0.1;
-depth_max = max([depth_state sim_data(:,3)'])+0.1;
+%UKF
+if EKF_UKF ==1 | EKF_UKF == 2
+accel_lineHandle_ukf = plot(accel, NaN, NaN, 'm-', 'DisplayName', 'Est. Accel UKF');
+vel_lineHandle_ukf = plot(vel, NaN, NaN, 'm-', 'DisplayName', 'Est. Vel UKF');
+depth_lineHandle_ukf = plot(depth, NaN, NaN, 'm-', 'DisplayName', 'Est. Depth UKF');
+end
+accel_state_ukf = state_ukf(1,:);
+vel_state_ukf = state_ukf(2,:);
+depth_state_ukf = state_ukf(3,:);
 
-% Configure plot
+true_accel_lineHandle = plot(accel, NaN, NaN, 'k-', 'DisplayName', 'True Accel');
+true_vel_lineHandle = plot(vel, NaN, NaN, 'k-', 'DisplayName', 'True Vel');
+true_depth_lineHandle = plot(depth, NaN, NaN, 'k-', 'DisplayName', 'True Depth');
+true_vel = (sim_data(:,3)' - [0 sim_data(1:end-1,3)'])/dt;
+true_accel = (true_vel - [0 true_vel(1:end-1)])/dt;
+
+%% Configure state plot
+accel_min = min([accel_state true_accel accel_state_ukf])*1.1;
+accel_max = max([accel_state true_accel accel_state_ukf])*1.1;
+vel_min = min([vel_state true_vel vel_state_ukf])*1.1;
+vel_max = max([vel_state true_vel vel_state_ukf])*1.1;
+depth_min = min([depth_state sim_data(:,3)' depth_state_ukf])*1.1;
+depth_max = max([depth_state sim_data(:,3)' depth_state_ukf])*1.1;
+
+
 accel.XLim = [-t_margin, n_timesteps*dt+t_margin];
 accel.YLim = [accel_min , accel_max];
 vel.XLim = [-t_margin, n_timesteps*dt+t_margin];
 vel.YLim = [vel_min , vel_max];
 depth.XLim = [-t_margin, n_timesteps*dt+t_margin];
 depth.YLim = [depth_min , depth_max];
-
+if EKF_UKF ==0 | EKF_UKF == 2
 set(accel_lineHandle,'XData',timesteps,'YData',accel_state); %Positive Std Dev
-set(true_accel_lineHandle,'XData',timesteps,'YData',true_accel); %Positive Std Dev
 set(vel_lineHandle,'XData',timesteps,'YData',vel_state); %Positive Std Dev
-set(true_vel_lineHandle,'XData',timesteps,'YData',true_vel); %Positive Std Dev
 set(depth_lineHandle,'XData',timesteps,'YData',depth_state); %Positive Std Dev
+end
+if EKF_UKF ==1 | EKF_UKF == 2
+set(accel_lineHandle_ukf,'XData',timesteps,'YData',accel_state_ukf); %Positive Std Dev
+set(vel_lineHandle_ukf,'XData',timesteps,'YData',vel_state_ukf); %Positive Std Dev
+set(depth_lineHandle_ukf,'XData',timesteps,'YData',depth_state_ukf); %Positive Std Dev
+end
+set(true_accel_lineHandle,'XData',timesteps,'YData',true_accel); %Positive Std Dev
+set(true_vel_lineHandle,'XData',timesteps,'YData',true_vel); %Positive Std Dev
 set(true_depth_lineHandle,'XData',timesteps,'YData',sim_data(:,3)'); %Positive Std Dev
   
+%% Configure sigma plot
+accel_min = min([sigmas(1,:) sigmas_ukf(1,:)] )*1.1;
+accel_max = max([sigmas(1,:) sigmas_ukf(1,:)] )*1.1;
+vel_min = min([sigmas(5,:) sigmas_ukf(5,:)] )*1.1;
+vel_max = max([sigmas(5,:) sigmas_ukf(5,:)] )*1.1;
+depth_min = min([sigmas(9,:) sigmas_ukf(9,:)] )*1.1;
+depth_max = max([sigmas(9,:) sigmas_ukf(9,:)] )*1.1;
+
+
+accel_sigma.XLim = [-t_margin, n_timesteps*dt+t_margin];
+accel_sigma.YLim = [accel_min , accel_max];
+vel_sigma.XLim = [-t_margin, n_timesteps*dt+t_margin];
+vel_sigma.YLim = [vel_min , vel_max];
+depth_sigma.XLim = [-t_margin, n_timesteps*dt+t_margin];
+depth_sigma.YLim = [depth_min , depth_max];
+if EKF_UKF ==0 | EKF_UKF == 2
+set(accel_sigma_lineHandle,'XData',timesteps,'YData',sigmas(1,:));
+set(vel_sigma_lineHandle,'XData',timesteps,'YData',sigmas(5,:));
+set(depth_sigma_lineHandle,'XData',timesteps,'YData',sigmas(9,:));
+end
+if EKF_UKF ==1 | EKF_UKF == 2
+set(accel_sigma_lineHandle_ukf,'XData',timesteps,'YData',sigmas_ukf(1,:));
+set(vel_sigma_lineHandle_ukf,'XData',timesteps,'YData',sigmas_ukf(5,:));
+set(depth_sigma_lineHandle_ukf,'XData',timesteps,'YData',sigmas_ukf(9,:));
+end
+%% Configure error plot
+title(error_ax, [error_graphTitle, ' - Timestep ', num2str(t), ' - MSE EKF ', num2str(sum(pose_errors(1:tstep).^2)), ' - MSE UKF ', num2str(sum(pose_errors_ukf(1:tstep).^2))]);
